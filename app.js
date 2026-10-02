@@ -110,12 +110,19 @@
   }
 
   // Spotify won't list some playlists' tracks, but the play queue is readable.
-  async function refreshQueue() {
+  let queueTimer = null;
+  async function refreshQueue(tries = 0) {
+    clearTimeout(queueTimer);
     if (!queueMode || selected !== currentUri) return;
     const my = loadId, name = queueMode;
     try {
       const q = await api("/me/player/queue");
       if (my !== loadId || !queueMode) return;
+      // Spotify's queue can lag a moment behind the player: wait until it matches.
+      if (tries < 5 && q.currently_playing && currentTrack && q.currently_playing.uri !== currentTrack) {
+        queueTimer = setTimeout(() => refreshQueue(tries + 1), 800);
+        return;
+      }
       const items = [q.currently_playing, ...(q.queue || [])].filter((t) => t && t.uri);
       $("#trhead").firstChild.textContent = name + " / up next / " + items.length + " (spotify hides the full list)";
       const ul = $("#tracks");
