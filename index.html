@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>loader</title>
+<style>
+  /* Akkurat Mono is a licensed font: drop your file at fonts/AkkuratMono.woff2 */
+  @font-face {
+    font-family: "Akkurat Mono";
+    src: local("Akkurat Mono"), local("AkkuratMono"), local("Akkurat-Mono"),
+         url("fonts/AkkuratMono.woff2") format("woff2");
+    font-display: swap;
+  }
+  :root { --bg: #fff; --fg: #111; --dim: #888; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #000; --fg: #eee; --dim: #777; } }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); }
+  body {
+    font: 13px/1.7 "Akkurat Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    padding: 24px 16px 96px; max-width: 720px;
+  }
+  button {
+    font: inherit; color: inherit; background: none; border: 0; padding: 0;
+    cursor: pointer; text-align: left;
+  }
+  button:hover, button:focus-visible { text-decoration: underline; outline: none; }
+  .dim { color: var(--dim); }
+  #list { margin: 16px 0 0; padding: 0; list-style: none; }
+  #list button { display: block; width: 100%; }
+  #list .on { text-decoration: underline; }
+  #list .on::before { content: "> "; }
+  #list li:not(.on) button::before { content: "  "; white-space: pre; }
+  #bar {
+    position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg);
+    padding: 12px 16px; display: flex; gap: 16px; flex-wrap: wrap;
+  }
+  #now { flex: 1 1 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="app"><button id="login">connect spotify</button></div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
