@@ -31,6 +31,12 @@
   li button::before { content: "  "; }
   li.on button::before { content: "> "; }
   li.sel button { text-decoration: underline; }
+  #q {
+    font: inherit; color: inherit; background: none; border: 0; border-bottom: 1px solid var(--dim);
+    border-radius: 0; padding: 0 0 2px; width: 14ch; margin-bottom: 16px; outline: none;
+  }
+  #q:focus { border-bottom-color: var(--fg); }
+  #q::placeholder { color: var(--dim); }
   #cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 32px; }
   #cols > div { height: calc(100vh - 150px); overflow-y: auto; }
   #trhead { display: flex; gap: 16px; }

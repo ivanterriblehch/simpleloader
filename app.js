@@ -63,6 +63,7 @@
 
   function render(playlists) {
     app.innerHTML = `
+      <input id="q" placeholder="search /" autocomplete="off" spellcheck="false">
       <div id="cols">
         <div><div class="dim">playlists / ${playlists.length}</div><ul id="list"></ul></div>
         <div>
@@ -87,6 +88,10 @@
       li.appendChild(b);
       list.appendChild(li);
     });
+    $("#q").addEventListener("input", applyFilter);
+    $("#q").addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { e.target.value = ""; applyFilter(); e.target.blur(); }
+    });
     list.addEventListener("click", (e) => {
       const b = e.target.closest("button");
       if (b) showTracks(b.parentNode, b.dataset.uri, b.textContent);
@@ -101,6 +106,13 @@
       li.classList.toggle("on", li.firstChild.dataset.uri === currentUri));
     document.querySelectorAll("#tracks li").forEach((li) =>
       li.classList.toggle("on", selected === currentUri && currentTrack === li.firstChild.dataset.uri));
+  }
+
+  function applyFilter() {
+    const q = $("#q").value.trim().toLowerCase();
+    document.querySelectorAll("#list li, #tracks li").forEach((li) => {
+      li.hidden = !!q && !li.firstChild.textContent.toLowerCase().includes(q);
+    });
   }
 
   async function fetchTracks(id) {
@@ -148,6 +160,7 @@
         ul.appendChild(li);
       });
       markPlaying();
+      applyFilter();
     } catch (e) {
       if (my === loadId) head.firstChild.textContent = name + " / can't load tracks (" + e.message + ")";
     }
@@ -210,7 +223,9 @@
     };
     $("#logout").onclick = () => { ["access", "expires", "refresh", "verifier"].forEach(store.del); location.reload(); };
     document.addEventListener("keydown", (e) => {
-      if (e.code === "Space") { e.preventDefault(); player.togglePlay(); }
+      if (e.target.tagName === "INPUT") return;
+      if (e.key === "/") { e.preventDefault(); $("#q").focus(); }
+      else if (e.code === "Space") { e.preventDefault(); player.togglePlay(); }
       else if (e.key === "ArrowRight") player.nextTrack();
       else if (e.key === "ArrowLeft") player.previousTrack();
     });
