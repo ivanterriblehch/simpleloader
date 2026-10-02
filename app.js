@@ -195,7 +195,12 @@
       markPlaying();
       applyFilter();
     } catch (e) {
-      if (my === loadId) head.firstChild.textContent = name + " / can't load tracks (" + e.message + ")";
+      if (my !== loadId) return;
+      const blocked = /\b(403|404)$/.test(e.message);
+      head.innerHTML = "<span></span><button id=\"playall\">play all</button>";
+      head.firstChild.textContent = name + (blocked
+        ? " / spotify won't list this playlist's tracks to this app. play all still works"
+        : " / can't load tracks (" + e.message + ")");
     }
   }
 
