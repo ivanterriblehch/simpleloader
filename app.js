@@ -110,10 +110,10 @@
   }
 
   // Spotify won't list some playlists' tracks, but the play queue is readable.
-  let queueTimer = null;
+  let queueTimer = null, skipping = false;
   async function refreshQueue(tries = 0) {
     clearTimeout(queueTimer);
-    if (!queueMode || selected !== currentUri) return;
+    if (!queueMode || selected !== currentUri || skipping) return;
     const my = loadId, name = queueMode;
     try {
       const q = await api("/me/player/queue");
@@ -288,7 +288,20 @@
     const fail = (err) => ($("#now").textContent = err.message);
     $("#tracks").addEventListener("click", (e) => {
       const b = e.target.closest("button");
-      if (!b || queueMode) return;
+      if (!b) return;
+      if (queueMode) {
+        // can't jump inside a playlist Spotify won't list, so skip forward n times
+        const n = [...b.closest("ul").children].indexOf(b.parentNode);
+        if (n < 1 || skipping) return;
+        skipping = true;
+        (async () => {
+          try { for (let i = 0; i < n; i++) { await player.nextTrack(); await new Promise((r) => setTimeout(r, 250)); } }
+          catch (err) { fail(err); }
+          skipping = false;
+          refreshQueue();
+        })();
+        return;
+      }
       if (searchUris) playUris([b.dataset.uri]).catch(fail);
       else if (selected) playContext(selected, Number(b.dataset.pos)).catch(fail);
     });
