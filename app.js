@@ -100,13 +100,38 @@
   }
 
   // ---------- tracks column ----------
-  let selected = null, currentUri = null, currentTrack = null, loadId = 0, searchUris = null;
+  let selected = null, currentUri = null, currentTrack = null, loadId = 0, searchUris = null, queueMode = null;
 
   function markPlaying() {
     document.querySelectorAll("#list li").forEach((li) =>
       li.classList.toggle("on", li.firstChild.dataset.uri === currentUri));
     document.querySelectorAll("#tracks li").forEach((li) =>
       li.classList.toggle("on", (searchUris || selected === currentUri) && currentTrack === li.firstChild.dataset.uri));
+  }
+
+  // Spotify won't list some playlists' tracks, but the play queue is readable.
+  async function refreshQueue() {
+    if (!queueMode || selected !== currentUri) return;
+    const my = loadId, name = queueMode;
+    try {
+      const q = await api("/me/player/queue");
+      if (my !== loadId || !queueMode) return;
+      const items = [q.currently_playing, ...(q.queue || [])].filter((t) => t && t.uri);
+      $("#trhead").firstChild.textContent = name + " / up next / " + items.length + " (spotify hides the full list)";
+      const ul = $("#tracks");
+      ul.textContent = "";
+      items.forEach((t, n) => {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        const artists = (t.artists || []).map((x) => x.name).join(", ");
+        b.textContent = `${String(n).padStart(2, "0")}  ${t.name} / ${artists}`.toLowerCase();
+        b.dataset.uri = t.uri;
+        li.appendChild(b);
+        ul.appendChild(li);
+      });
+      markPlaying();
+      applyFilter();
+    } catch (e) { /* keep whatever is shown */ }
   }
 
   function applyFilter() {
@@ -135,6 +160,7 @@
     const my = ++loadId;
     selected = null;
     searchUris = null;
+    queueMode = null;
     document.querySelectorAll("#list li").forEach((x) => x.classList.remove("sel"));
     const head = $("#trhead"), ul = $("#tracks");
     head.innerHTML = "<span></span>";
@@ -166,6 +192,7 @@
     const my = ++loadId;
     selected = uri;
     searchUris = null;
+    queueMode = null;
     document.querySelectorAll("#list li").forEach((x) => x.classList.toggle("sel", x === li));
     const head = $("#trhead"), ul = $("#tracks");
     head.innerHTML = "<span></span>";
@@ -201,6 +228,7 @@
       head.firstChild.textContent = name + (blocked
         ? " / spotify won't list this playlist's tracks to this app. play all still works"
         : " / can't load tracks (" + e.message + ")");
+      if (blocked) { queueMode = name; refreshQueue(); }
     }
   }
 
@@ -231,8 +259,10 @@
       $("#now").textContent = t ? `${t.name} / ${t.artists.map((a) => a.name).join(", ")}`.toLowerCase() : "-";
       $("#toggle").textContent = s.paused ? "play" : "pause";
       currentUri = s.context && s.context.uri;
+      const prev = currentTrack;
       currentTrack = t && ((t.linked_from && t.linked_from.uri) || t.uri);
       markPlaying();
+      if (currentTrack !== prev) refreshQueue();
     });
     player.connect();
 
@@ -251,7 +281,7 @@
     const fail = (err) => ($("#now").textContent = err.message);
     $("#tracks").addEventListener("click", (e) => {
       const b = e.target.closest("button");
-      if (!b) return;
+      if (!b || queueMode) return;
       if (searchUris) playUris([b.dataset.uri]).catch(fail);
       else if (selected) playContext(selected, Number(b.dataset.pos)).catch(fail);
     });
