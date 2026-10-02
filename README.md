@@ -8,7 +8,7 @@ Text-only Spotify player: your playlists, a track column, a now-playing line, pr
 3. Optional: put your licensed Akkurat Mono at `fonts/AkkuratMono.woff2` (or install it locally). Falls back to system mono.
 4. Serve it: `python3 -m http.server 8080` and open `http://127.0.0.1:8080/`.
 
-Requires Spotify Premium (Web Playback SDK). Keys: space = play/pause, left/right = prev/next, / = search, esc = clear search.
+Requires Spotify Premium (Web Playback SDK). Keys: space = play/pause, left/right = prev/next, / = search box (filters as you type, Enter searches all of Spotify), esc = clear.
 
 ## Quality
 Spotify's Web Playback SDK and Web API expose no quality setting, so there is no toggle here.

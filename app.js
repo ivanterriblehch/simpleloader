@@ -91,6 +91,7 @@
     $("#q").addEventListener("input", applyFilter);
     $("#q").addEventListener("keydown", (e) => {
       if (e.key === "Escape") { e.target.value = ""; applyFilter(); e.target.blur(); }
+      else if (e.key === "Enter" && e.target.value.trim()) showSearch(e.target.value.trim());
     });
     list.addEventListener("click", (e) => {
       const b = e.target.closest("button");
@@ -99,18 +100,18 @@
   }
 
   // ---------- tracks column ----------
-  let selected = null, currentUri = null, currentTrack = null, loadId = 0;
+  let selected = null, currentUri = null, currentTrack = null, loadId = 0, searchUris = null;
 
   function markPlaying() {
     document.querySelectorAll("#list li").forEach((li) =>
       li.classList.toggle("on", li.firstChild.dataset.uri === currentUri));
     document.querySelectorAll("#tracks li").forEach((li) =>
-      li.classList.toggle("on", selected === currentUri && currentTrack === li.firstChild.dataset.uri));
+      li.classList.toggle("on", (searchUris || selected === currentUri) && currentTrack === li.firstChild.dataset.uri));
   }
 
   function applyFilter() {
     const q = $("#q").value.trim().toLowerCase();
-    document.querySelectorAll("#list li, #tracks li").forEach((li) => {
+    document.querySelectorAll(searchUris ? "#list li" : "#list li, #tracks li").forEach((li) => {
       li.hidden = !!q && !li.firstChild.textContent.toLowerCase().includes(q);
     });
   }
@@ -130,9 +131,41 @@
     }
   }
 
+  async function showSearch(q) {
+    const my = ++loadId;
+    selected = null;
+    searchUris = null;
+    document.querySelectorAll("#list li").forEach((x) => x.classList.remove("sel"));
+    const head = $("#trhead"), ul = $("#tracks");
+    head.innerHTML = "<span></span>";
+    head.firstChild.textContent = "spotify: " + q + " / searching";
+    ul.textContent = "";
+    try {
+      const r = await api("/search?type=track&limit=10&q=" + encodeURIComponent(q));
+      if (my !== loadId) return;
+      const found = (r.tracks.items || []).filter((t) => t && t.uri);
+      searchUris = found.map((t) => t.uri);
+      head.innerHTML = "<span></span><button id=\"playall\">play all</button>";
+      head.firstChild.textContent = "spotify: " + q + " / " + found.length;
+      found.forEach((t, n) => {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        const artists = (t.artists || []).map((x) => x.name).join(", ");
+        b.textContent = `${String(n + 1).padStart(2, "0")}  ${t.name} / ${artists}`.toLowerCase();
+        b.dataset.uri = t.uri;
+        li.appendChild(b);
+        ul.appendChild(li);
+      });
+      markPlaying();
+    } catch (e) {
+      if (my === loadId) head.firstChild.textContent = "spotify: " + q + " / search failed (" + e.message + ")";
+    }
+  }
+
   async function showTracks(li, uri, name) {
     const my = ++loadId;
     selected = uri;
+    searchUris = null;
     document.querySelectorAll("#list li").forEach((x) => x.classList.toggle("sel", x === li));
     const head = $("#trhead"), ul = $("#tracks");
     head.innerHTML = "<span></span>";
@@ -205,13 +238,22 @@
       await api("/me/player/play?device_id=" + deviceId, { method: "PUT", body: JSON.stringify(position == null ? { context_uri: uri } : { context_uri: uri, offset: { position } }) });
     };
 
+    const playUris = async (uris) => {
+      if (!deviceId) return;
+      await player.activateElement();
+      await api("/me/player/play?device_id=" + deviceId, { method: "PUT", body: JSON.stringify({ uris }) });
+    };
     const fail = (err) => ($("#now").textContent = err.message);
     $("#tracks").addEventListener("click", (e) => {
       const b = e.target.closest("button");
-      if (b && selected) playContext(selected, Number(b.dataset.pos)).catch(fail);
+      if (!b) return;
+      if (searchUris) playUris([b.dataset.uri]).catch(fail);
+      else if (selected) playContext(selected, Number(b.dataset.pos)).catch(fail);
     });
     $("#trhead").addEventListener("click", (e) => {
-      if (e.target.id === "playall" && selected) playContext(selected).catch(fail);
+      if (e.target.id !== "playall") return;
+      if (searchUris) playUris(searchUris).catch(fail);
+      else if (selected) playContext(selected).catch(fail);
     });
     $("#prev").onclick = () => player.previousTrack();
     $("#next").onclick = () => player.nextTrack();
