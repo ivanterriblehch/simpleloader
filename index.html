@@ -18,7 +18,7 @@
   html, body { margin: 0; background: var(--bg); color: var(--fg); }
   body {
     font: 13px/1.7 "Akkurat Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    padding: 24px 16px 96px; max-width: 720px;
+    padding: 24px 16px 96px; max-width: 1200px;
   }
   button {
     font: inherit; color: inherit; background: none; border: 0; padding: 0;
@@ -26,11 +26,19 @@
   }
   button:hover, button:focus-visible { text-decoration: underline; outline: none; }
   .dim { color: var(--dim); }
-  #list { margin: 16px 0 0; padding: 0; list-style: none; }
-  #list button { display: block; width: 100%; }
-  #list .on { text-decoration: underline; }
-  #list .on::before { content: "> "; }
-  #list li:not(.on) button::before { content: "  "; white-space: pre; }
+  ul { margin: 16px 0 0; padding: 0; list-style: none; }
+  ul button { display: block; width: 100%; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+  li button::before { content: "  "; }
+  li.on button::before { content: "> "; }
+  li.sel button { text-decoration: underline; }
+  #cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 32px; }
+  #cols > div { height: calc(100vh - 150px); overflow-y: auto; }
+  #trhead { display: flex; gap: 16px; }
+  #trhead span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 640px) {
+    #cols { grid-template-columns: 1fr; gap: 16px; }
+    #cols > div { height: auto; overflow: visible; }
+  }
   #bar {
     position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg);
     padding: 12px 16px; display: flex; gap: 16px; flex-wrap: wrap;

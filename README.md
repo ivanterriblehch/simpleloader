@@ -1,6 +1,6 @@
 # loader
 
-Text-only Spotify player: your playlists, a now-playing line, prev/play/next/shuffle. Nothing else.
+Text-only Spotify player: your playlists, a track column, a now-playing line, prev/play/next/shuffle. Nothing else.
 
 ## Setup
 1. Create an app at https://developer.spotify.com/dashboard and add a Redirect URI, e.g. `http://127.0.0.1:8080/`.

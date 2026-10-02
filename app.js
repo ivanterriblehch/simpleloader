@@ -63,8 +63,13 @@
 
   function render(playlists) {
     app.innerHTML = `
-      <div class="dim">playlists / ${playlists.length}</div>
-      <ul id="list"></ul>
+      <div id="cols">
+        <div><div class="dim">playlists / ${playlists.length}</div><ul id="list"></ul></div>
+        <div>
+          <div id="trhead" class="dim"><span>select a playlist</span></div>
+          <ul id="tracks"></ul>
+        </div>
+      </div>
       <div id="bar">
         <div id="now" class="dim">-</div>
         <button id="prev">prev</button>
@@ -82,6 +87,70 @@
       li.appendChild(b);
       list.appendChild(li);
     });
+    list.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (b) showTracks(b.parentNode, b.dataset.uri, b.textContent);
+    });
+  }
+
+  // ---------- tracks column ----------
+  let selected = null, currentUri = null, currentTrack = null, loadId = 0;
+
+  function markPlaying() {
+    document.querySelectorAll("#list li").forEach((li) =>
+      li.classList.toggle("on", li.firstChild.dataset.uri === currentUri));
+    document.querySelectorAll("#tracks li").forEach((li) =>
+      li.classList.toggle("on", selected === currentUri && currentTrack === li.firstChild.dataset.uri));
+  }
+
+  async function fetchTracks(id) {
+    for (const kind of ["items", "tracks"]) {
+      try {
+        const out = [];
+        let url = `/playlists/${id}/${kind}?limit=100`;
+        while (url) {
+          const page = await api(url);
+          out.push(...page.items);
+          url = page.next ? page.next.replace("https://api.spotify.com/v1", "") : null;
+        }
+        return out;
+      } catch (e) { if (kind === "tracks") throw e; }
+    }
+  }
+
+  async function showTracks(li, uri, name) {
+    const my = ++loadId;
+    selected = uri;
+    document.querySelectorAll("#list li").forEach((x) => x.classList.toggle("sel", x === li));
+    const head = $("#trhead"), ul = $("#tracks");
+    head.innerHTML = "<span></span>";
+    head.firstChild.textContent = name + " / loading";
+    ul.textContent = "";
+    try {
+      const items = await fetchTracks(uri.split(":").pop());
+      if (my !== loadId) return;
+      const rows = [];
+      items.forEach((it, i) => {
+        const t = it && (it.item || it.track);
+        if (t && t.uri) rows.push({ t, i });
+      });
+      head.innerHTML = "<span></span><button id=\"playall\">play all</button>";
+      head.firstChild.textContent = name + " / " + rows.length;
+      const pad = String(rows.length).length;
+      rows.forEach(({ t, i }, n) => {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        const artists = (t.artists || []).map((x) => x.name).join(", ");
+        b.textContent = `${String(n + 1).padStart(pad, "0")}  ${t.name} / ${artists}`.toLowerCase();
+        b.dataset.uri = t.uri;
+        b.dataset.pos = i;
+        li.appendChild(b);
+        ul.appendChild(li);
+      });
+      markPlaying();
+    } catch (e) {
+      if (my === loadId) head.firstChild.textContent = name + " / can't load tracks (" + e.message + ")";
+    }
   }
 
   async function loadPlaylists() {
@@ -97,7 +166,7 @@
 
   // ---------- player ----------
   function startPlayer() {
-    let deviceId, shuffle = false, currentUri = null;
+    let deviceId, shuffle = false;
     const player = new Spotify.Player({
       name: "loader", volume: 0.8,
       getOAuthToken: (cb) => token().then(cb),
@@ -111,21 +180,25 @@
       $("#now").textContent = t ? `${t.name} / ${t.artists.map((a) => a.name).join(", ")}`.toLowerCase() : "-";
       $("#toggle").textContent = s.paused ? "play" : "pause";
       currentUri = s.context && s.context.uri;
-      document.querySelectorAll("#list li").forEach((li) =>
-        li.classList.toggle("on", li.firstChild.dataset.uri === currentUri));
+      currentTrack = t && ((t.linked_from && t.linked_from.uri) || t.uri);
+      markPlaying();
     });
     player.connect();
 
-    const playContext = async (uri) => {
+    const playContext = async (uri, position) => {
       if (!deviceId) return;
       await player.activateElement();
       await api("/me/player/shuffle?state=" + shuffle + "&device_id=" + deviceId, { method: "PUT" });
-      await api("/me/player/play?device_id=" + deviceId, { method: "PUT", body: JSON.stringify({ context_uri: uri }) });
+      await api("/me/player/play?device_id=" + deviceId, { method: "PUT", body: JSON.stringify(position == null ? { context_uri: uri } : { context_uri: uri, offset: { position } }) });
     };
 
-    $("#list").addEventListener("click", (e) => {
+    const fail = (err) => ($("#now").textContent = err.message);
+    $("#tracks").addEventListener("click", (e) => {
       const b = e.target.closest("button");
-      if (b) playContext(b.dataset.uri).catch((err) => ($("#now").textContent = err.message));
+      if (b && selected) playContext(selected, Number(b.dataset.pos)).catch(fail);
+    });
+    $("#trhead").addEventListener("click", (e) => {
+      if (e.target.id === "playall" && selected) playContext(selected).catch(fail);
     });
     $("#prev").onclick = () => player.previousTrack();
     $("#next").onclick = () => player.nextTrack();
